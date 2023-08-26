@@ -88,19 +88,20 @@ int main(int argc, char **argv)
 	pcl::PointCloud<Point_T>::Ptr pointCloudT_down(new pcl::PointCloud<Point_T>()), pointCloudS_down(new pcl::PointCloud<Point_T>());
 	cfilter.voxelfilter(pointCloudT, pointCloudT_down, resolution);
 	cfilter.voxelfilter(pointCloudS, pointCloudS_down, resolution);
-	Bounds s_cloud_bbx;
-	cfilter.getCloudBound(*pointCloudS_down, s_cloud_bbx);
+	Bounds s_cloud_bbx; // 保存点云的x,y,z方向的界，也就是最大值最小值
+	cfilter.getCloudBound(*pointCloudS_down, s_cloud_bbx);  // 获取x,y,z方向的最大值与最小值
 	float bbx_magnitude = s_cloud_bbx.max_x - s_cloud_bbx.min_x + s_cloud_bbx.max_y - s_cloud_bbx.min_y + s_cloud_bbx.max_z - s_cloud_bbx.min_z;
 
 	//Extract keypoints
 	float non_stable_ratio_threshold= 0.65;
 	CKeypointDetect<Point_T> ckpd(neighborhood_radius, non_stable_ratio_threshold, 20, curvature_non_max_radius);
 	pcl::PointIndicesPtr keyPointIndicesT, keyPointIndicesS;
+	// 分别对target和source的点云进行关键点提取
 	ckpd.keypointDetectionBasedOnCurvature(pointCloudT_down, keyPointIndicesT);
 	ckpd.keypointDetectionBasedOnCurvature(pointCloudS_down, keyPointIndicesS);
-	int nkps = keyPointIndicesS->indices.size();
-	int nkpt = keyPointIndicesT->indices.size();
-	Eigen::MatrixX3d kpSXYZ, kpTXYZ;
+	int nkps = keyPointIndicesS->indices.size(); // source点提取出来的keypoint点的数量
+	int nkpt = keyPointIndicesT->indices.size(); // target点提取出来的keypoint点的数量
+	Eigen::MatrixX3d kpSXYZ, kpTXYZ; // 每行存储的是每个点的坐标x y z
 	dataio.savecoordinates(pointCloudS_down, pointCloudT_down, keyPointIndicesS, keyPointIndicesT, kpSXYZ, kpTXYZ);
 	Keypoints Kp;
 	Kp.setCoordinate(kpSXYZ, kpTXYZ);

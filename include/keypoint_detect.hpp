@@ -23,17 +23,24 @@ class CKeypointDetect
 													  _min_point_num_neighborhood(min_point_num_neighborhood),
 													  _curvature_non_max_radius(curvature_non_max_radius) {}
 
-
+	/**
+	 * \brief: 通过曲率得到关键点
+	 * \param[in] inputPointCloud 输入的点云
+	 * \param[in] keypointIndices keypoint的索引
+	*/
 	bool keypointDetectionBasedOnCurvature(const typename pcl::PointCloud<PointT>::Ptr &inputPointCloud,
 										   pcl::PointIndicesPtr &keypointIndices)
 	{
 		std::vector<pcaFeature> features(inputPointCloud->points.size());
 		PrincipleComponentAnalysis<PointT> pca_operator;
+		// step1: 计算每个点的特征
+		// features包含了输入点云的每个点的特征信息
 		pca_operator.CalculatePcaFeaturesOfPointCloud(inputPointCloud,features,_neighborhood_radius);
 
 		int keypointNum = 0;
 
 		pcl::PointIndicesPtr candidateIndices(new pcl::PointIndices());
+		// step2：剔除不稳定点
 		pruneUnstablePoints(features, _ratio_unstable_thre, candidateIndices);
 
 		std::vector<pcaFeature> stableFeatures;
@@ -43,6 +50,7 @@ class CKeypointDetect
 		}
 
 		pcl::PointIndicesPtr nonMaximaIndices(new pcl::PointIndices());
+		// 对稳定点进行处理，让一个点代表局部区域
 		nonMaximaSuppression(stableFeatures, nonMaximaIndices);
 		keypointIndices = nonMaximaIndices;
 
@@ -112,10 +120,10 @@ class CKeypointDetect
 
   protected:
   private:
-	float _neighborhood_radius;
-	float _ratio_unstable_thre;
+	float _neighborhood_radius; // 计算每个点特征时kdtree寻找最近邻搜索半径
+	float _ratio_unstable_thre; // 比率小于此值的点为稳定点，否则不稳定
 	int _min_point_num_neighborhood;
-	float _curvature_non_max_radius;
+	float _curvature_non_max_radius; // kdtree搜索半径，具体含义为：在此半径的点将会被剔除，相当于一个点代表了该点局部的特征
     
     static bool cmpBasedOnCurvature(const pcaFeature &a, const pcaFeature &b)
 	{
@@ -128,7 +136,7 @@ class CKeypointDetect
 			return false;
 		}
 	}
-
+	// 剔除不稳定的点
 	bool pruneUnstablePoints(const std::vector<pcaFeature> &features, float ratioMax, pcl::PointIndicesPtr &indices)
 	{
 		for (int i = 0; i < features.size(); ++i)
@@ -147,11 +155,12 @@ class CKeypointDetect
 	}
 
 	bool nonMaximaSuppression(std::vector<pcaFeature> &features, pcl::PointIndicesPtr &indices)
-	{
+	{	
+		// 曲率从大到小排序
 		std::sort(features.begin(), features.end(), cmpBasedOnCurvature);
 		pcl::PointCloud<pcl::PointNormal> pointCloud;
 
-		std::set<int, std::less<int>> unVisitedPtId;
+		std::set<int, std::less<int>> unVisitedPtId; // 从小到大排序
 		std::set<int, std::less<int>>::iterator iterUnseg;
 		for (int i = 0; i < features.size(); ++i)
 		{

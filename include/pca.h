@@ -15,9 +15,9 @@ namespace ghicp
 {
 struct eigenValue // Eigen Value ,lamada1 > lamada2 > lamada3;
 {
-	double lamada1;
+	double lamada1; // 最大特征值
 	double lamada2;
-	double lamada3;
+	double lamada3; // 最小特征值
 };
 
 struct eigenVector //the eigen vector corresponding to the eigen value
@@ -40,7 +40,7 @@ struct pcaFeature //PCA
 	double spherical_2;
 	pcl::PointNormal pt;
 	int ptId;
-	int ptNum = 0;
+	int ptNum = 0; // 通过kdtree搜索得到该点的邻居点的数量
 	std::vector<int> neighbor_indices;
 };
 
@@ -135,6 +135,7 @@ class PrincipleComponentAnalysis
 										  const float radius)
 	{
 		//LOG(INFO) << "input cloud size is " << inputPointCloud->points.size();
+		// step1: 构建kdtree
 		pcl::KdTreeFLANN<PointT> tree;
 		tree.setInputCloud(inputPointCloud);
 		features.resize(inputPointCloud->size());
@@ -143,6 +144,7 @@ class PrincipleComponentAnalysis
 		//{
 		for (int i = 0; i < inputPointCloud->points.size(); i++)
 		{
+			// step2： 计算每个点的最近邻
 			std::vector<int> search_indices; //point index Vector
 			std::vector<float> distances;	//distance Vector
 			std::vector<int>().swap(search_indices);
@@ -154,6 +156,7 @@ class PrincipleComponentAnalysis
 			features[i].pt.z = inputPointCloud->points[i].z;
 			features[i].ptId = i;
 			features[i].ptNum = search_indices.size();
+			// step3: 计算每个点的pca特征，包括： 特征值，特征向量，曲率，最近邻数量，最近邻对应的索引
 			CalculatePcaFeature(inputPointCloud, search_indices, features[i]);
 			// inputPointCloud->points[i].normal_x =  features[i].vectors.normalDirection.x();
 			// inputPointCloud->points[i].normal_y =  features[i].vectors.normalDirection.y();
@@ -205,7 +208,7 @@ class PrincipleComponentAnalysis
 	{
 		size_t ptNum;
 		ptNum = search_indices.size();
-
+		// 三个点无法满足计算所需要的最小点数
 		if (ptNum < 3)
 			return false;
 
@@ -214,12 +217,12 @@ class PrincipleComponentAnalysis
 		{
 			selected_cloud->points.push_back(inputPointCloud->points[search_indices[i]]);
 		}
-
+		// 调用pcl自带的pca方法进行主成分分解
 		pcl::PCA<PointT> pca_operator;
 		pca_operator.setInputCloud(selected_cloud);
 
 		// Compute eigen values and eigen vectors
-		Eigen::Matrix3f eigen_vectors = pca_operator.getEigenVectors();
+		Eigen::Matrix3f eigen_vectors = pca_operator.getEigenVectors(); // 特征值从大到小依次对应的特征向量
 		Eigen::Vector3f eigen_values = pca_operator.getEigenValues();
 
 		feature.vectors.principalDirection = eigen_vectors.col(0);
@@ -235,7 +238,7 @@ class PrincipleComponentAnalysis
 		}
 		else
 		{
-			feature.curvature = feature.values.lamada3 / (feature.values.lamada1 + feature.values.lamada2 + feature.values.lamada3);
+			feature.curvature = feature.values.lamada3 / (feature.values.lamada1 + feature.values.lamada2 + feature.values.lamada3); // 计算每个点的曲率
 		}
 
 		// feature.linear = (sqrt(feature.values.lamada1) - sqrt(feature.values.lamada2)) / sqrt(feature.values.lamada1);
